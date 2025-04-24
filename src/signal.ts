@@ -3,20 +3,20 @@ import { Connection, Client } from '@temporalio/client';
 import { NativeConnection } from '@temporalio/worker';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { runWorkflow } from './starter';
 import { getEnv } from './interfaces/env';
-import type { Env } from './interfaces/env';
+import { addDistance, endRide } from './workflows';
 
-interface EnvWithApiKey extends Env {
-  clientApiKey?: string;
-}
+async function main() {
+  const argv = await yargs(hideBin(process.argv)).options({
+    scooterId: { type: 'string', demandOption: true },
+    addDistance: { type: 'number' },
+    endRide: { type: 'boolean' },
+  }).parse();
 
-async function runWithScooter(env: EnvWithApiKey, scooterId: string) {
-  let client: Client;
+  const env = getEnv();
   let connection: Connection | NativeConnection;
 
   if (env.clientCertPath && env.clientKeyPath) {
-    console.log('Using mTLS authentication');
     const serverRootCACertificate = env.serverRootCACertificatePath
       ? await fs.readFile(env.serverRootCACertificatePath)
       : undefined;
@@ -33,7 +33,6 @@ async function runWithScooter(env: EnvWithApiKey, scooterId: string) {
       },
     });
   } else if (env.clientApiKey) {
-    console.log('Using API key authentication');
     connection = await Connection.connect({
       address: env.address,
       tls: true,
@@ -43,28 +42,27 @@ async function runWithScooter(env: EnvWithApiKey, scooterId: string) {
       },
     });
   } else {
-    console.log('Warning: Using unencrypted connection');
     connection = await Connection.connect({ address: env.address });
   }
 
-  client = new Client({ connection, namespace: env.namespace });
+  const client = new Client({ connection, namespace: env.namespace });
 
-  await runWorkflow(client, env.taskQueue, {
-    scooterId,
-    customerId: 'demo-customer-001',
-    meterName: 'scooter-ride',
-    rideTimeoutSecs: 60 * 60 * 3, // 3 hours
-  });
+  const workflowId = `scooter-session-${argv.scooterId}`;
+
+  const handle = client.workflow.getHandle(workflowId);
+
+  if (argv.addDistance !== undefined) {
+    await handle.signal(addDistance, argv.addDistance);
+    console.log(`✅ Sent addDistance(${argv.addDistance}) to ${workflowId}`);
+  } else if (argv.endRide) {
+    await handle.signal(endRide);
+    console.log(`✅ Sent endRide() to ${workflowId}`);
+  } else {
+    console.log('⚠️ No signal provided. Use --addDistance or --endRide');
+  }
 }
 
-const argv = yargs(hideBin(process.argv)).options({
-  scooterId: { type: 'string', demandOption: true, describe: 'Unique ID of the scooter' }
-}).argv as { scooterId: string };
-
-runWithScooter(getEnv(), argv.scooterId).then(
-  () => process.exit(0),
-  (err) => {
-    console.error(err);
-    process.exit(1);
-  }
-);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

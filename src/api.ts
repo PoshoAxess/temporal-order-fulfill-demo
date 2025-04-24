@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { OrderItem } from './interfaces/order';
+import { OrderItem } from './interfaces/meterevent';
 
 const stockDatabasePath = path.resolve(__dirname, '../data/stock_database.json');
 
