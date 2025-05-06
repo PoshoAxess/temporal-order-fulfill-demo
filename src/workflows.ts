@@ -37,6 +37,12 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
 
   const { FindStripeCustomerID, BeginRide, PostTimeCharge, PostDistanceCharge, EndRide } = proxyActivities<typeof activities>({
     startToCloseTimeout: '1 minute',
+    retry: {
+      initialInterval: '1s',
+      backoffCoefficient: 2.0,
+      maximumInterval: '100s',
+      nonRetryableErrorTypes: ['CustomerNotFoundException'],
+    },
   });
 
   // handle 'tokensConsumed' Query (returns # of tokens consumed so far during this ride)

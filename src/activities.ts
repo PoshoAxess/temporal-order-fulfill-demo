@@ -1,4 +1,5 @@
 import * as activity from '@temporalio/activity';
+import { log } from '@temporalio/activity';
 
 const stripeApiKey = process.env["STRIPE_API_KEY"];
 if (!stripeApiKey) {
@@ -23,14 +24,14 @@ export interface RideDetails {
 
 export async function FindStripeCustomerID(data: RideDetails): Promise<string> {
 	const email = data.emailAddress;
-	console.log(`Searching for Stripe customer with email: ${email}`);
+	log.info(`Searching for Stripe customer with email: ${email}`);
 
     const { attempt } = activity.Context.current().info;
 
     // Simulate a brief network outage that prevents us from issuing a
 	// request to the Stripe API for the first 3 attempts
     if (attempt <= 3) {
-        console.log(`Cannot access Stripe API (attempt ${attempt})`);
+        log.info(`Cannot access Stripe API (attempt ${attempt})`);
         await new Promise((resolve) => setTimeout(resolve, 5000)); // simulate delay
         throw new Error('Network error while attempting to contact Stripe');
     }
@@ -40,12 +41,12 @@ export async function FindStripeCustomerID(data: RideDetails): Promise<string> {
 	});
 
 	if (customers.data.length > 0) {
+	    log.info(`Found Stripe customer ID for email: ${email}`);
 		const customer = customers.data[0];
 		return customer.id;
-	} else {
-		console.log(`No customer found with email: ${email}`);
-		throw new Error(`No customer found with email: ${email}`);
 	}
+	log.info(`No customer found with email: ${email}`);
+	throw new CustomerNotFoundException(`No customer found with email: ${email}`);
 }
 
 export async function BeginRide(data: RideDetails): Promise<number> {
@@ -64,11 +65,11 @@ export async function PostDistanceCharge(data: RideDetails): Promise<number> {
 }
 
 export async function EndRide(data: RideDetails): Promise<void> {
-	console.log('Ride ending');
+	log.info('Ride ending');
 }
 
 async function PostStripeMeterEvent(stripeCustomerId: string, tokensConsumed: number): Promise<void> {
-	console.log(`Posting ${tokensConsumed} tokens consumed to Stripe for customer ${stripeCustomerId}`);
+	log.info(`Posting ${tokensConsumed} tokens consumed to Stripe for customer ${stripeCustomerId}`);
 
 	try {
 		await stripe.billing.meterEvents.create({
@@ -85,3 +86,10 @@ async function PostStripeMeterEvent(stripeCustomerId: string, tokensConsumed: nu
 	}
 }
 
+export class CustomerNotFoundException extends Error {
+  constructor(message?: string) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = CustomerNotFoundException.name;
+  }
+}
