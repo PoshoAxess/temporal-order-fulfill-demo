@@ -1,9 +1,10 @@
 import { Client } from '@temporalio/client';
-import { RideShareScooterSessionWorkflow } from './workflows';
+import { ScooterRideWorkflow } from './workflows';
 
 export interface ScooterSessionParams {
   scooterId: string;
-  customerId: string;
+  emailAddress: string;
+  customerId?: string;
   meterName: string;
   rideTimeoutSecs?: number;
 }
@@ -14,14 +15,14 @@ export async function runWorkflow(
   params: ScooterSessionParams
 ): Promise<void> {
   try {
-    const result = await client.workflow.execute(RideShareScooterSessionWorkflow, {
-      taskQueue,
-      workflowId: `scooter-session-${params.scooterId}`,
-      args: [params],
-    });
+	const result = await client.workflow.execute(ScooterRideWorkflow, {
+	  taskQueue,
+	  workflowId: `scooter-session-${params.scooterId}`,
+	  args: [params],
+	});
 
-    console.log(`Scooter session workflow succeeded:`, result);
-  } catch (error) {
-    console.error(`Scooter session workflow failed:`, error);
-  }
+		console.log(`Scooter session workflow succeeded:`, result);
+	} catch (error) {
+		console.error(`Scooter session workflow failed:`, error);
+	}
 }

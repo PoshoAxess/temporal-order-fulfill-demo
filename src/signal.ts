@@ -4,7 +4,7 @@ import { NativeConnection } from '@temporalio/worker';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { getEnv } from './interfaces/env';
-import { addDistance, endRide } from './workflows';
+import { addDistanceSignal, endRideSignal } from './workflows';
 
 async function main() {
   const argv = await yargs(hideBin(process.argv)).options({
@@ -52,10 +52,10 @@ async function main() {
   const handle = client.workflow.getHandle(workflowId);
 
   if (argv.addDistance !== undefined) {
-    await handle.signal(addDistance, argv.addDistance);
+    await handle.signal(addDistanceSignal);
     console.log(`✅ Sent addDistance(${argv.addDistance}) to ${workflowId}`);
   } else if (argv.endRide) {
-    await handle.signal(endRide);
+    await handle.signal(endRideSignal);
     console.log(`✅ Sent endRide() to ${workflowId}`);
   } else {
     console.log('⚠️ No signal provided. Use --addDistance or --endRide');

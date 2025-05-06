@@ -11,7 +11,7 @@ interface EnvWithApiKey extends Env {
   clientApiKey?: string;
 }
 
-async function runWithScooter(env: EnvWithApiKey, scooterId: string) {
+async function runWithScooter(env: EnvWithApiKey, scooterId: string, emailAddress: string) {
   let client: Client;
   let connection: Connection | NativeConnection;
 
@@ -51,17 +51,20 @@ async function runWithScooter(env: EnvWithApiKey, scooterId: string) {
 
   await runWorkflow(client, env.taskQueue, {
     scooterId,
-    customerId: 'demo-customer-001',
-    meterName: 'scooter-ride',
-    rideTimeoutSecs: 60 * 60 * 3, // 3 hours
+	emailAddress,
+    customerId: '',      // will look this one up from Stripe, based on the email address
+    meterName: 'scooter-ride-tq',
+    rideTimeoutSecs: 60 * 60 * 3,   // 3 hours  -- TODO see if this is still implemented
   });
 }
 
 const argv = yargs(hideBin(process.argv)).options({
-  scooterId: { type: 'string', demandOption: true, describe: 'Unique ID of the scooter' }
-}).argv as { scooterId: string };
+  scooterId: { type: 'string', demandOption: true, describe: 'Unique ID of the scooter' },
+  emailAddress: { type: 'string', demandOption: true, describe: 'e-mail address of the customer' }
 
-runWithScooter(getEnv(), argv.scooterId).then(
+}).argv as { scooterId: string, emailAddress: string };
+
+runWithScooter(getEnv(), argv.scooterId, argv.emailAddress).then(
   () => process.exit(0),
   (err) => {
     console.error(err);

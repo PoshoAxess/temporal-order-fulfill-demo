@@ -1,7 +1,8 @@
 # Temporal Demo: RideShare Scooter Session (TypeScript)
 
 ### Overview
-A Temporal workflow simulating a rideshare scooter session. This demo highlights Temporal's durability and signal-based interaction by modeling a pay-per-use ride. The session collects distance updates in real time and ends with a single, idempotent billing event via Stripe.
+A Temporal workflow simulating a rideshare scooter session. This demo highlights Temporal's durability and signal-based interaction by modeling a pay-per-use ride. The Workflow uses Stripe for usage-based billing. See the `stripe-notes.md`
+file in the `demo` directory for step-by-step instructions for Stripe setup.
 
 This scenario is a natural fit for Temporal due to several key advantages:
 * Durable state tracking: Temporal maintains state over time without requiring external persistence. The session's duration, distance, and accumulated cost are managed in-memory by the workflow and survive process restarts or crashes.
@@ -14,11 +15,6 @@ This approach reduces infrastructure complexity, increases billing accuracy, and
 
 -- 
 
-(TODO this is a rideshare scooter demo, not an e-commerce order fulfillment use case)
-
-[Watch the demo  (YouTube)](https://www.youtube.com/watch?v=dNVmRfWsNkM)
-
-[![Watch the demo](./videoscreenie.jpg)](https://www.youtube.com/watch?v=dNVmRfWsNkM)
 
 ### Running this sample
 
@@ -51,18 +47,20 @@ TEMPORAL_API_KEY="your-api-key"
 
 Run `npm run start` to start the Worker. (You can also get [Nodemon](https://www.npmjs.com/package/nodemon) to watch for changes and restart the worker automatically by running `npm run start.watch`.)
 
-You must specify a --scooterId argument when running the workflow. This uniquely identifies the scooter session:
+You must specify the `--scooterId` and `--emailAddress` arguments when 
+running the workflow. The former uniquely identifies the scooter session:
+
 ```
 npm run workflow -- --scooterId=SCOOTER-1234
 ```
 
 Send this one or more times during the ride:
 ```
-npm run signal -- --scooterId=SCOOTER-1234 --addDistance 100
+npm run signal -- --scooterId=1234 --addDistance
 ```
 
 ```
-npm run signal -- --scooterId=SCOOTER-1234 --endRide
+npm run signal -- --scooterId=1234 --endRide
 ```
 
 The workflow will end and the scooter will be billed for the distance traveled.
@@ -83,5 +81,4 @@ See `demo` folder for different scenarios that will be live-coded into `workflow
 
 ### TODO
 * Figure out the scenarios to demo at the conference
-* Add real support for Stripe
 * Haven't checked the workflow code in detail
