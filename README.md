@@ -48,24 +48,130 @@ TEMPORAL_API_KEY="your-api-key"
 Run `npm run start` to start the Worker. (You can also get [Nodemon](https://www.npmjs.com/package/nodemon) to watch for changes and restart the worker automatically by running `npm run start.watch`.)
 
 You must specify the `--scooterId` and `--emailAddress` arguments when 
-running the workflow. The former uniquely identifies the scooter session:
+running the workflow. The former uniquely identifies the scooter session.
 
+## Demonstration scenario summary
+Before performing any demonstration, you must do some one-time setup
+in Stripe, as [documented in these instructions](../demo/stripe-notes.md)
+to establish the Customer, Product, Meter, and Subscription associated 
+with usage-based billing in Stripe. 
+
+For all scenarios below, you will have at least two terminal windows
+(or tabs). In each, set the `STRIPE_API_KEY` environment variable to
+your Stripe secret API key.
+
+In the first terminal, run the `npm install` command to install the
+dependencies and `npm run start` to start the Worker, as described
+above. In the second, follow the steps below to demonstrate a specific 
+scenario.
+
+
+### Happy Path
+In this scenario, everything works as expected on the first try. There 
+are no failures. The e-mail address must correspond to the one you set
+up in Stripe, as per [these instructions](../demo/stripe-notes.md).
+
+```command
+npm run workflow -- --scooterId=1230 --emailAddress=maria@example.com
 ```
+
+This starts the Workflow Execution, which bills the user some number 
+of tokens for an initial "unlock the scooter" charge and consumes some
+additional number of tokens for each subsequent 15 seconds of use. 
+
+In a third terminal (where you need not set `STRIPE_API_KEY`, send the 
+`addDistance` Signal one or more times during the ride (this represents
+the scooter having traveled 100 feet, consuming some number of tokens 
+that are then reported to Stripe's usage-based billing):
+
+```command
+npm run signal -- --scooterId=1230 --addDistance
+```
+
+When you are ready to end the ride, send the `endRide` signal. This will 
+cause the Workflow Execution to end, at which point no additional tokens
+will be consumed.
+
+```command
+npm run signal -- --scooterId=1230 --endRide
+```
+
+
+### Network Outage
+In this scenario, the first Activity in the Workflow (which calls a 
+Stripe API to look up the customer ID corresponding to the email 
+address used to start the Workflow Execution) initially fails due 
+to a (simulated) network outage. On the fourth attempt, the failure
+resolves itself, after which the Activity will succeed.
+
+The steps for this scenario are identical to the ones above, except 
+for the scooter ID (the `FindStripeCustomerID` Activity will simulate
+this outage only when invoked with a scooter ID of `1234`. 
+
+
+**Start the Workflow Execution**
+```command
 npm run workflow -- --scooterId=1234 --emailAddress=maria@example.com
 ```
 
-Send this one or more times during the ride:
-```
+**Add 100 feet of distance traveled**
+```command
 npm run signal -- --scooterId=1234 --addDistance
 ```
 
-```
-npm run signal -- --scooterId=1234 --endRide
+**End the ride**
+```command
+npm run signal -- --scooterId=1230 --endRide
 ```
 
-The workflow will end and the scooter will be billed for the distance traveled.
+### Non-Retryable Failure
+In this scenario, the Activity that invokes a Stripe API to look up 
+the Customer ID corresponding to the email address fails because there 
+is no record for that customer in Stripe. Unlike a network outage,
+we'd prefer to end the Workflow Execution in this case instead of 
+retrying the call again and again. 
 
-### Scenarios (TODO make specific to rideshare scooter demo)
+Temporal's Retry Policies support not only defining the cadence of 
+retry attempts, but also designating certain error types as non-retryable. 
+The specific exception type in this scenario is `CustomerNotFoundException`
+(defined in the `src/activities.ts` file) and the Retry Policy defined in 
+`src/workflows.ts` specifies this type of exception as non-retryable.
+
+**Start the Workflow Execution with an invalid e-mail address**
+```command
+npm run workflow -- --scooterId=1235 --emailAddress=bogus@example.com
+```
+
+
+### Discover a latent bug in the application
+In this scenario, the `BeginRide` Activity that assesses the initial 
+charge for unlocking the scooter attempts to do some validation on the 
+scooter ID. The comment above the relevant line of code states that 
+the scooter ID (a string) must consist only of digits, but the regular 
+expression that performs this validation has a typo. It checks that 
+each character is in the range 0-8 instead of 0-9, so it incorrectly
+fails if the scooter ID contains a 9.
+
+You can use this scenario to demonstrate how you can fix a bug in the 
+application code, even for a Workflow Execution already in progress.
+We especially recommend using the Temporal Web UI here, since its 
+**Pending Activities** tab will show the error that's causing the
+Activity Execution to fail and will also identify the specific line 
+of code responsible.
+
+
+**Start the Workflow Execution with a scooter ID that triggers the bug**
+```command
+npm run workflow -- --scooterId=1239 --emailAddress=maria@example.com
+```
+
+Wait for the Activity to fail, use the Temporal Web UI to identify the 
+source of the failurem, and then fix the bug by changing `0-8` in the 
+regex to `0-9`. Afterwards, you should find that the Activity will 
+succeed upon the next retry attempt. 
+
+
+### Possible Scenarios (WIP; TODO make specific to rideshare scooter demo)
 
 See `demo` folder for different scenarios that will be live-coded into `workflows.ts`:
 
