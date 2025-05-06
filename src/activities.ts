@@ -25,6 +25,16 @@ export async function FindStripeCustomerID(data: RideDetails): Promise<string> {
 	const email = data.emailAddress;
 	console.log(`Searching for Stripe customer with email: ${email}`);
 
+    const { attempt } = activity.Context.current().info;
+
+    // Simulate a brief network outage that prevents us from issuing a
+	// request to the Stripe API for the first 3 attempts
+    if (attempt <= 3) {
+        console.log(`Cannot access Stripe API (attempt ${attempt})`);
+        await new Promise((resolve) => setTimeout(resolve, 5000)); // simulate delay
+        throw new Error('Network error while attempting to contact Stripe');
+    }
+
 	const customers = await stripe.customers.search({
 		query: `email:'${email}'`,
 	});
