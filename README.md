@@ -121,7 +121,7 @@ npm run signal -- --scooterId=1234 --addDistance
 
 **End the ride**
 ```command
-npm run signal -- --scooterId=1230 --endRide
+npm run signal -- --scooterId=1234 --endRide
 ```
 
 ### Non-Retryable Failure
