@@ -51,7 +51,7 @@ You must specify the `--scooterId` and `--emailAddress` arguments when
 running the workflow. The former uniquely identifies the scooter session:
 
 ```
-npm run workflow -- --scooterId=SCOOTER-1234
+npm run workflow -- --scooterId=1234 --emailAddress=maria@example.com
 ```
 
 Send this one or more times during the ride:
