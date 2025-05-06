@@ -167,7 +167,10 @@ npm run workflow -- --scooterId=1239 --emailAddress=maria@example.com
 
 Wait for the Activity to fail, use the Temporal Web UI to identify the 
 source of the failurem, and then fix the bug by changing `0-8` in the 
-regex to `0-9`. Afterwards, you should find that the Activity will 
+regex to `0-9`. Afterwards, you will need to kill and re-run the 
+`npm run start` process you started in the other terminal for the change 
+to take effect (if not using nodemon to do that automatically). Once 
+you have done these things, you should find that the Activity will 
 succeed upon the next retry attempt. 
 
 
