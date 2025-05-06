@@ -31,8 +31,8 @@ public class WorkflowInteractions {
                 .build());
 
         ScooterRideWorkflowInput input = new ScooterRideWorkflowInput();
-        input.EmailAddr = emailAddress;
-        input.ScooterID = scooterId;
+        input.emailAddress = emailAddress;
+        input.scooterID = scooterId;
         stub.start(input);
     }
 
@@ -53,8 +53,8 @@ public class WorkflowInteractions {
     }
 
     static class ScooterRideWorkflowInput {
-        String EmailAddr;
-        String CustomerID;
-        String ScooterID;
+        String emailAddress;
+        String customerID;
+        String scooterID;
     }
 }
