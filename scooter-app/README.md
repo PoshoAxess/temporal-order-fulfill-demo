@@ -28,3 +28,5 @@ mvn exec:java -Dexec.mainClass="io.temporal.scooterapp.Main"
 This launches a GUI that you can use to begin a scooter ride
 and see the status of that ride. 
 
+As an alternative, you can just run `./launch-gui.sh`, which
+runs the command above.
