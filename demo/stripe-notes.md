@@ -49,7 +49,7 @@ various ways of incurring fees while using the scooter).
 5. Ensure that **Monthly** is selected in the **Billing Period** dropdown
 6. Click the **More pricing options** link
 7. In the **Choose your pricing model** dropdown, select `Usage-based`
-8. Select **Per package** from the dropdown below `Usage-based`
+8. Select **Per Unit** from the dropdown just below `Usage-based`
 9. In the **Amount** field, enter `25.00`
 10. In the **per** field, enter `1000`
 11. Under the **Meter** heading, select `Tokens Consumed`
