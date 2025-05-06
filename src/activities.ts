@@ -30,7 +30,7 @@ export async function FindStripeCustomerID(data: RideDetails): Promise<string> {
 
     // Simulate a brief network outage that prevents us from issuing a
 	// request to the Stripe API for the first 3 attempts
-    if (attempt <= 3) {
+    if (attempt <= 3 && data.scooterId === '1234') {
         log.info(`Cannot access Stripe API (attempt ${attempt})`);
         await new Promise((resolve) => setTimeout(resolve, 5000)); // simulate delay
         throw new Error('Network error while attempting to contact Stripe');
