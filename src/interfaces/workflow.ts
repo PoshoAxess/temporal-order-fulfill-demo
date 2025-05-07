@@ -28,6 +28,10 @@ export interface RideStatus {
         total:    number;     // unlock + time + distance
     };
 
+    /** Pricing */
+    pricePerThousand?: number;  // price per 1000 tokens
+    currency?: string;          // currency code (e.g., 'USD')
+
     /** Troubleshooting */
     lastError?: string;     // most recent ApplicationFailure.message
 } 

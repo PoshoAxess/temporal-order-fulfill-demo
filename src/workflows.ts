@@ -36,6 +36,8 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<RideStatu
       distance: 0,
       total: 0,
     },
+    pricePerThousand: input.pricePerThousand,
+    currency: input.currency,
   };
 
   const {
