@@ -7,6 +7,8 @@ export interface ScooterSessionParams {
   customerId?: string;
   meterName: string;
   rideTimeoutSecs?: number;
+  pricePerThousand?: number;  // price per 1000 tokens
+  currency?: string;          // currency code (e.g., 'USD')
 }
 
 export async function runWorkflow(
@@ -15,14 +17,21 @@ export async function runWorkflow(
   params: ScooterSessionParams
 ): Promise<void> {
   try {
-	const result = await client.workflow.execute(ScooterRideWorkflow, {
-	  taskQueue,
-	  workflowId: `scooter-session-${params.scooterId}`,
-	  args: [params],
-	});
+    // Set default pricing if not provided
+    const workflowParams = {
+      ...params,
+      pricePerThousand: params.pricePerThousand ?? 25,
+      currency: params.currency ?? 'USD'
+    };
 
-		console.log(`Scooter session workflow succeeded:`, result);
-	} catch (error) {
-		console.error(`Scooter session workflow failed:`, error);
-	}
+    const result = await client.workflow.execute(ScooterRideWorkflow, {
+      taskQueue,
+      workflowId: `scooter-session-${params.scooterId}`,
+      args: [workflowParams],
+    });
+
+    console.log(`Scooter session workflow succeeded:`, result);
+  } catch (error) {
+    console.error(`Scooter session workflow failed:`, error);
+  }
 }
