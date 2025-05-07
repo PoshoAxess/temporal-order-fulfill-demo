@@ -2,38 +2,44 @@
  * RideShareScooterSession workflow
  *
  * • `addDistance(feet)` — signal from the scooter firmware / mobile app  
- * • `endRide()` — signal when the user taps “End Ride”  
+ * • `endRide()` — signal when the user taps "End Ride"  
  * • One Stripe meter-event is posted at the end with the total charge (as a # of tokens consumed)
  */
 import {
     proxyActivities,
     defineSignal,
-	defineQuery,
+    defineQuery,
     setHandler,
     condition,
     sleep,
     workflowInfo,
     ApplicationFailure,
-  } from '@temporalio/workflow';
+} from '@temporalio/workflow';
 
 import type * as activities from '../src/activities';
+import { RideDetails, RideStatus } from './interfaces/workflow';
 
 // Define Signals and Queries
 export const addDistanceSignal = defineSignal('addDistance');
 export const endRideSignal = defineSignal('endRide');
 export const tokensConsumedQuery = defineQuery('tokensConsumed');
 
-// --- Input type ---
-interface RideDetails {
-	emailAddress: string; // what the user provides to us
-	scooterId: string;
-	customerId?: string;  // what we look up from Stripe (based on the email address)
-}
-
 // Workflow function (result is the # of tokens consumed during the ride)
 export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
   let tokensConsumed = 0;
   let hasRideEnded = false;
+  let rideStatus: RideStatus = {
+    phase: 'INITIALIZING',
+    startedAt: new Date().toISOString(),
+    lastMeterAt: new Date().toISOString(),
+    distanceFt: 0,
+    tokens: {
+      unlock: 0,
+      time: 0,
+      distance: 0,
+      total: 0
+    }
+  };
 
   const { FindStripeCustomerID, BeginRide, PostTimeCharge, PostDistanceCharge, EndRide } = proxyActivities<typeof activities>({
     startToCloseTimeout: '1 minute',
@@ -45,53 +51,61 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
     },
   });
 
-  // handle 'tokensConsumed' Query (returns # of tokens consumed so far during this ride)
-  setHandler(tokensConsumedQuery, () => {
-    return tokensConsumed;
-  });
+  try {
+    // handle 'tokensConsumed' Query (returns # of tokens consumed so far during this ride)
+    setHandler(tokensConsumedQuery, () => {
+      return tokensConsumed;
+    });
 
-  // handle 'addDistance' Signal (consume some tokens for distance traveled)
-  let pendingDistances: number[] = [];
-  setHandler(addDistanceSignal, () => {
-    pendingDistances.push(1); // 1 is a count, not a value (it represents 100 feet of travel)
-  });
+    // handle 'addDistance' Signal (consume some tokens for distance traveled)
+    let pendingDistances: number[] = [];
+    setHandler(addDistanceSignal, () => {
+      pendingDistances.push(1); // 1 is a count, not a value (it represents 100 feet of travel)
+    });
 
-  // handle 'endRide' Signal (ends the Workflow Execution)
-  setHandler(endRideSignal, () => {
-    hasRideEnded = true;
-  });
+    // handle 'endRide' Signal (ends the Workflow Execution)
+    setHandler(endRideSignal, () => {
+      hasRideEnded = true;
+    });
 
-  // Activity 1: Use the provided email address to look up the Stripe customer ID 
-  const stripeCustomerId = await FindStripeCustomerID(input);
-  input.customerId = stripeCustomerId;
+    // Activity 1: Use the provided email address to look up the Stripe customer ID 
+    const stripeCustomerId = await FindStripeCustomerID(input);
+    input.customerId = stripeCustomerId;
 
-  // Activity 2: Begin ride (this incurs a fee to unlock the scooter)
-  const beginRideOutput = await BeginRide(input);
-  tokensConsumed += beginRideOutput;
+    // Activity 2: Begin ride (this incurs a fee to unlock the scooter)
+    const beginRideOutput = await BeginRide(input);
+    tokensConsumed += beginRideOutput;
+    rideStatus.phase = 'ACTIVE';
 
-  // Activity 3: Every 15 seconds, post a charge for time on the scooter
-  while (!hasRideEnded) {
-    // Post time-based charge
-    const postTimeChargeOutput = await PostTimeCharge(input);
-    tokensConsumed += postTimeChargeOutput;
+    // Activity 3: Every 15 seconds, post a charge for time on the scooter
+    while (!hasRideEnded) {
+      // Post time-based charge
+      const postTimeChargeOutput = await PostTimeCharge(input);
+      tokensConsumed += postTimeChargeOutput;
 
-    // Actiivity 4: post a charge for distance (in response to the signal received)
-    while (pendingDistances.length > 0) {
-      pendingDistances.shift();
-      const postDistanceChargeOutput = await PostDistanceCharge(input);
-      tokensConsumed += postDistanceChargeOutput;
+      // Actiivity 4: post a charge for distance (in response to the signal received)
+      while (pendingDistances.length > 0) {
+        pendingDistances.shift();
+        const postDistanceChargeOutput = await PostDistanceCharge(input);
+        tokensConsumed += postDistanceChargeOutput;
+      }
+
+      // Wait for either EndRide signal (end) or 15 seconds (charge for more time)
+      const sleepPromise = sleep(15 * 1000);
+      await Promise.race([sleepPromise, waitForSignalOrEnd()]);
     }
 
-    // Wait for either EndRide signal (end) or 15 seconds (charge for more time)
-    const sleepPromise = sleep(15 * 1000);
-    await Promise.race([sleepPromise, waitForSignalOrEnd()]);
+    // Activity 5: End the ride (in response to the Signal received)  
+    const endRideOutput = await EndRide(input);
+    console.log(`Ride ended: ${endRideOutput}`);
+    rideStatus.phase = 'ENDED';
+
+    return tokensConsumed;
+  } catch (error) {
+    rideStatus.phase = 'FAILED';
+    rideStatus.lastError = error instanceof Error ? error.message : String(error);
+    throw new ApplicationFailure('Ride workflow failed unrecoverably');
   }
-
-  // Activity 5: End the ride (in response to the Signal received)  
-  const endRideOutput = await EndRide(input);
-  console.log(`Ride ended: ${endRideOutput}`);
-
-  return tokensConsumed;
 
   // resolve immediately if ride ended
   function waitForSignalOrEnd(): Promise<void> {
