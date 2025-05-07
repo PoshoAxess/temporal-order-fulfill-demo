@@ -9,7 +9,7 @@ import { addDistanceSignal, endRideSignal } from './workflows';
 async function main() {
   const argv = await yargs(hideBin(process.argv)).options({
     scooterId: { type: 'string', demandOption: true },
-    addDistance: { type: 'number' },
+    addDistance: { type: 'boolean' },
     endRide: { type: 'boolean' },
   }).parse();
 

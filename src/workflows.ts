@@ -10,9 +10,7 @@ import {
     defineSignal,
     defineQuery,
     setHandler,
-    condition,
     sleep,
-    workflowInfo,
     ApplicationFailure,
 } from '@temporalio/workflow';
 
@@ -23,6 +21,7 @@ import { RideDetails, RideStatus } from './interfaces/workflow';
 export const addDistanceSignal = defineSignal('addDistance');
 export const endRideSignal = defineSignal('endRide');
 export const tokensConsumedQuery = defineQuery('tokensConsumed');
+export const getRideDetailsQuery = defineQuery('getRideDetails');
 
 // Workflow function (result is the # of tokens consumed during the ride)
 export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
@@ -54,6 +53,14 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
     // handle 'tokensConsumed' Query (returns # of tokens consumed so far during this ride)
     setHandler(tokensConsumedQuery, () => {
       return rideStatus.tokens.total;
+    });
+
+    // handle 'getRideDetails' Query (returns current ride status)
+    setHandler(getRideDetailsQuery, () => {
+      return {
+        ...input,
+        status: rideStatus
+      };
     });
 
     // handle 'addDistance' Signal (consume some tokens for distance traveled)
