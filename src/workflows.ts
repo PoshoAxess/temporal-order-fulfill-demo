@@ -26,7 +26,6 @@ export const tokensConsumedQuery = defineQuery('tokensConsumed');
 
 // Workflow function (result is the # of tokens consumed during the ride)
 export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
-  let tokensConsumed = 0;
   let hasRideEnded = false;
   let rideStatus: RideStatus = {
     phase: 'INITIALIZING',
@@ -54,7 +53,7 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
   try {
     // handle 'tokensConsumed' Query (returns # of tokens consumed so far during this ride)
     setHandler(tokensConsumedQuery, () => {
-      return tokensConsumed;
+      return rideStatus.tokens.total;
     });
 
     // handle 'addDistance' Signal (consume some tokens for distance traveled)
@@ -74,20 +73,24 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
 
     // Activity 2: Begin ride (this incurs a fee to unlock the scooter)
     const beginRideOutput = await BeginRide(input);
-    tokensConsumed += beginRideOutput;
+    rideStatus.tokens.unlock = beginRideOutput;
+    rideStatus.tokens.total += beginRideOutput;
     rideStatus.phase = 'ACTIVE';
 
     // Activity 3: Every 15 seconds, post a charge for time on the scooter
     while (!hasRideEnded) {
       // Post time-based charge
       const postTimeChargeOutput = await PostTimeCharge(input);
-      tokensConsumed += postTimeChargeOutput;
+      rideStatus.tokens.time += postTimeChargeOutput;
+      rideStatus.tokens.total += postTimeChargeOutput;
 
-      // Actiivity 4: post a charge for distance (in response to the signal received)
+      // Activity 4: post a charge for distance (in response to the signal received)
       while (pendingDistances.length > 0) {
         pendingDistances.shift();
         const postDistanceChargeOutput = await PostDistanceCharge(input);
-        tokensConsumed += postDistanceChargeOutput;
+        rideStatus.tokens.distance += postDistanceChargeOutput;
+        rideStatus.tokens.total += postDistanceChargeOutput;
+        rideStatus.distanceFt += 100; // Increment distance by 100 feet for each signal
       }
 
       // Wait for either EndRide signal (end) or 15 seconds (charge for more time)
@@ -100,7 +103,7 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
     console.log(`Ride ended: ${endRideOutput}`);
     rideStatus.phase = 'ENDED';
 
-    return tokensConsumed;
+    return rideStatus.tokens.total;
   } catch (error) {
     rideStatus.phase = 'FAILED';
     rideStatus.lastError = error instanceof Error ? error.message : String(error);
