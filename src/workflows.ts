@@ -101,6 +101,10 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<RideStatu
     while (!hasRideEnded) {
       // Drain distance queue first
       while (pendingDistances.length && !hasRideEnded) {
+        if (rideStatus.tokens.unlock == 0) {
+          // Distance signals aren't valid if the scooter is locked
+          continue;
+        }
         pendingDistances.shift();
         const distanceTokens = await PostDistanceCharge(input);
         rideStatus.tokens.distance += distanceTokens;
