@@ -36,10 +36,6 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
       time: 0,
       distance: 0,
       total: 0
-    },
-    pricing: {
-      pricePerThousand: input.pricePerThousand ?? 25,
-      currency: input.currency ?? 'USD'
     }
   };
 
@@ -94,6 +90,7 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
       const postTimeChargeOutput = await PostTimeCharge(input);
       rideStatus.tokens.time += postTimeChargeOutput;
       rideStatus.tokens.total += postTimeChargeOutput;
+      rideStatus.lastMeterAt = new Date().toISOString(); // Update lastMeterAt timestamp
 
       // Activity 4: post a charge for distance (in response to the signal received)
       while (pendingDistances.length > 0) {
@@ -111,8 +108,9 @@ export async function ScooterRideWorkflow(input: RideDetails): Promise<number> {
 
     // Activity 5: End the ride (in response to the Signal received)  
     const endRideOutput = await EndRide(input);
-    console.log(`Ride ended: ${endRideOutput}`);
+    console.log(`Ride ended`);
     rideStatus.phase = 'ENDED';
+    rideStatus.endedAt = new Date().toISOString(); // Set endedAt timestamp
 
     return rideStatus.tokens.total;
   } catch (error) {
