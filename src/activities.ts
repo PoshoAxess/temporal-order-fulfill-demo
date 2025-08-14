@@ -13,11 +13,22 @@ export async function requireApproval(order: Order): Promise<boolean> {
   }
 
   await simulateDelay(1000);
+
   return false;
 }
 
 export async function processPayment(order: Order): Promise<string> {
   console.log("Processing payment...");
+
+  // Simulate inventory service downtime
+  // The activity will sleep the first 3 times it is called
+  // And throw an error to simulate API call timeout
+  const { attempt } = activity.Context.current().info;
+  if (attempt <= 10) {
+    console.log(`Inventory service down, attempt ${attempt}`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    throw new Error("Inventory service down");
+  }
 
   // Simulate payment processing logic
   if (order.payment.creditCard.expiration === "12/23") {
