@@ -19,10 +19,10 @@ async function reserveInventory(orderItems: OrderItem[]): Promise<void> {
 
     // SIMULATE BUG FIX FOR INVALID DATA BUG
     // Removes @@@ from the end of the item name if present
-    if (itemName.endsWith('@@@')) {
-      itemName = itemName.slice(0, -3);
-      console.log(`BUG FIX: Removed @@@ from item name: ${itemName}`);
-    }
+    // if (itemName.endsWith('@@@')) {
+    //   itemName = itemName.slice(0, -3);
+    //   console.log(`BUG FIX: Removed @@@ from item name: ${itemName}`);
+    // }
 
     const stockItem = stockDatabase.find(item => item.itemName === itemName);
 
